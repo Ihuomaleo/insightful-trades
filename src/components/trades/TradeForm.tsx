@@ -1,0 +1,446 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { format } from 'date-fns';
+import { CalendarIcon, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { CURRENCY_PAIRS, SETUPS, EMOTIONS } from '@/types/trade';
+
+const tradeSchema = z.object({
+  pair: z.string().min(1, 'Select a currency pair'),
+  direction: z.enum(['long', 'short']),
+  entry_price: z.coerce.number().positive('Entry price must be positive'),
+  exit_price: z.coerce.number().positive('Exit price must be positive').optional().nullable(),
+  stop_loss: z.coerce.number().positive('Stop loss must be positive'),
+  take_profit: z.coerce.number().positive('Take profit must be positive').optional().nullable(),
+  lot_size: z.coerce.number().positive('Lot size must be positive'),
+  commission: z.coerce.number().min(0, 'Commission cannot be negative').default(0),
+  entry_time: z.date(),
+  exit_time: z.date().optional().nullable(),
+  status: z.enum(['open', 'closed']).default('open'),
+  setups: z.array(z.string()).default([]),
+  emotions: z.array(z.string()).default([]),
+  notes: z.string().optional().nullable(),
+});
+
+type TradeFormData = z.infer<typeof tradeSchema>;
+
+interface TradeFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (data: TradeFormData) => void;
+  isSubmitting?: boolean;
+  defaultValues?: Partial<TradeFormData>;
+}
+
+export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultValues }: TradeFormProps) {
+  const [selectedSetups, setSelectedSetups] = useState<string[]>(defaultValues?.setups || []);
+  const [selectedEmotions, setSelectedEmotions] = useState<string[]>(defaultValues?.emotions || []);
+
+  const form = useForm<TradeFormData>({
+    resolver: zodResolver(tradeSchema),
+    defaultValues: {
+      pair: '',
+      direction: 'long',
+      entry_price: undefined,
+      exit_price: null,
+      stop_loss: undefined,
+      take_profit: null,
+      lot_size: 0.01,
+      commission: 0,
+      entry_time: new Date(),
+      exit_time: null,
+      status: 'open',
+      setups: [],
+      emotions: [],
+      notes: '',
+      ...defaultValues,
+    },
+  });
+
+  const handleSubmit = (data: TradeFormData) => {
+    onSubmit({
+      ...data,
+      setups: selectedSetups,
+      emotions: selectedEmotions,
+    });
+  };
+
+  const toggleSetup = (setup: string) => {
+    setSelectedSetups(prev =>
+      prev.includes(setup) ? prev.filter(s => s !== setup) : [...prev, setup]
+    );
+  };
+
+  const toggleEmotion = (emotion: string) => {
+    setSelectedEmotions(prev =>
+      prev.includes(emotion) ? prev.filter(e => e !== emotion) : [...prev, emotion]
+    );
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto scrollbar-thin">
+        <SheetHeader>
+          <SheetTitle>Log New Trade</SheetTitle>
+          <SheetDescription>
+            Enter your trade details to add it to your journal.
+          </SheetDescription>
+        </SheetHeader>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 mt-6">
+            {/* Pair & Direction */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="pair"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency Pair</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select pair" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {CURRENCY_PAIRS.map(pair => (
+                          <SelectItem key={pair} value={pair}>{pair}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="direction"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Direction</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="long">Long</SelectItem>
+                        <SelectItem value="short">Short</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Prices */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="entry_price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Entry Price</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="1.08500"
+                        className="font-mono"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="exit_price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Exit Price</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="1.08800"
+                        className="font-mono"
+                        {...field}
+                        value={field.value ?? ''}
+                        onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* SL & TP */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="stop_loss"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stop Loss</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="1.08300"
+                        className="font-mono"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="take_profit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Take Profit</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="1.09000"
+                        className="font-mono"
+                        {...field}
+                        value={field.value ?? ''}
+                        onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Lot Size & Commission */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="lot_size"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lot Size</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.01"
+                        className="font-mono"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="commission"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Commission ($)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="font-mono"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Entry Time */}
+            <FormField
+              control={form.control}
+              name="entry_time"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Entry Time</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            'pl-3 text-left font-normal',
+                            !field.value && 'text-muted-foreground'
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, 'PPP HH:mm')
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Status */}
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Setups */}
+            <div className="space-y-2">
+              <FormLabel>Setups / Strategies</FormLabel>
+              <div className="flex flex-wrap gap-2">
+                {SETUPS.map(setup => (
+                  <Badge
+                    key={setup}
+                    variant={selectedSetups.includes(setup) ? 'default' : 'outline'}
+                    className="cursor-pointer transition-colors"
+                    onClick={() => toggleSetup(setup)}
+                  >
+                    {setup}
+                    {selectedSetups.includes(setup) && (
+                      <X className="ml-1 h-3 w-3" />
+                    )}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Emotions */}
+            <div className="space-y-2">
+              <FormLabel>Emotions / Psychology</FormLabel>
+              <div className="flex flex-wrap gap-2">
+                {EMOTIONS.map(emotion => {
+                  const isNegative = ['FOMO', 'Greedy', 'Fearful', 'Revenge Trading', 'Overconfident', 'Impulsive', 'Rule Break'].includes(emotion);
+                  return (
+                    <Badge
+                      key={emotion}
+                      variant={selectedEmotions.includes(emotion) ? 'default' : 'outline'}
+                      className={cn(
+                        'cursor-pointer transition-colors',
+                        selectedEmotions.includes(emotion) && isNegative && 'bg-loss hover:bg-loss/80'
+                      )}
+                      onClick={() => toggleEmotion(emotion)}
+                    >
+                      {emotion}
+                      {selectedEmotions.includes(emotion) && (
+                        <X className="ml-1 h-3 w-3" />
+                      )}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Trade rationale, lessons learned..."
+                      className="resize-none"
+                      rows={3}
+                      {...field}
+                      value={field.value ?? ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : 'Save Trade'}
+            </Button>
+          </form>
+        </Form>
+      </SheetContent>
+    </Sheet>
+  );
+}
