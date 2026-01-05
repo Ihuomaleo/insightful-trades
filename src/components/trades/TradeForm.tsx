@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { CalendarIcon, X } from 'lucide-react';
+import { ScreenshotUpload } from './ScreenshotUpload';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -54,6 +55,8 @@ const tradeSchema = z.object({
   setups: z.array(z.string()).default([]),
   emotions: z.array(z.string()).default([]),
   notes: z.string().optional().nullable(),
+  before_screenshot: z.string().optional().nullable(),
+  after_screenshot: z.string().optional().nullable(),
 });
 
 type TradeFormData = z.infer<typeof tradeSchema>;
@@ -69,6 +72,8 @@ interface TradeFormProps {
 export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultValues }: TradeFormProps) {
   const [selectedSetups, setSelectedSetups] = useState<string[]>(defaultValues?.setups || []);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>(defaultValues?.emotions || []);
+  const [beforeScreenshot, setBeforeScreenshot] = useState<string | null>(defaultValues?.before_screenshot || null);
+  const [afterScreenshot, setAfterScreenshot] = useState<string | null>(defaultValues?.after_screenshot || null);
 
   const form = useForm<TradeFormData>({
     resolver: zodResolver(tradeSchema),
@@ -96,6 +101,8 @@ export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultV
       ...data,
       setups: selectedSetups,
       emotions: selectedEmotions,
+      before_screenshot: beforeScreenshot,
+      after_screenshot: afterScreenshot,
     });
   };
 
@@ -411,6 +418,23 @@ export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultV
                     </Badge>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Screenshots */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Screenshots</label>
+              <div className="grid grid-cols-2 gap-4">
+                <ScreenshotUpload
+                  label="Before Trade"
+                  value={beforeScreenshot}
+                  onChange={setBeforeScreenshot}
+                />
+                <ScreenshotUpload
+                  label="After Trade"
+                  value={afterScreenshot}
+                  onChange={setAfterScreenshot}
+                />
               </div>
             </div>
 
