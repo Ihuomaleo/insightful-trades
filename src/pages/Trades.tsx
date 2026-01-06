@@ -78,15 +78,15 @@ export default function TradesPage() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-2xl font-semibold">Trade Log</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-semibold">Trade Log</h1>
+          <p className="text-sm text-muted-foreground">
             {trades.length} total trades logged
           </p>
         </div>
-        <Button onClick={() => setFormOpen(true)} className="gap-2">
+        <Button onClick={() => setFormOpen(true)} className="gap-2 w-full sm:w-auto">
           <Plus className="w-4 h-4" />
           New Trade
         </Button>
@@ -97,14 +97,14 @@ export default function TradesPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="flex flex-wrap items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50"
+        className="flex flex-col gap-4 p-4 rounded-lg bg-muted/30 border border-border/50"
       >
         <div className="flex items-center gap-2 text-muted-foreground">
           <Filter className="w-4 h-4" />
           <span className="text-sm font-medium">Filters</span>
         </div>
 
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search pairs..."
@@ -114,44 +114,47 @@ export default function TradesPage() {
           />
         </div>
 
-        <Select value={filterPair} onValueChange={setFilterPair}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="All Pairs" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Pairs</SelectItem>
-            {CURRENCY_PAIRS.map(pair => (
-              <SelectItem key={pair} value={pair}>{pair}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <Select value={filterPair} onValueChange={setFilterPair}>
+            <SelectTrigger>
+              <SelectValue placeholder="All Pairs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Pairs</SelectItem>
+              {CURRENCY_PAIRS.map(pair => (
+                <SelectItem key={pair} value={pair}>{pair}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={filterDirection} onValueChange={setFilterDirection}>
-          <SelectTrigger className="w-[120px]">
-            <SelectValue placeholder="Direction" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="long">Long</SelectItem>
-            <SelectItem value="short">Short</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={filterDirection} onValueChange={setFilterDirection}>
+            <SelectTrigger>
+              <SelectValue placeholder="Direction" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="long">Long</SelectItem>
+              <SelectItem value="short">Short</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[120px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="open">Open</SelectItem>
-            <SelectItem value="closed">Closed</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="col-span-2 sm:col-span-1">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="open">Open</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         {(searchQuery || filterPair !== 'all' || filterDirection !== 'all' || filterStatus !== 'all') && (
           <Button
             variant="ghost"
             size="sm"
+            className="self-start"
             onClick={() => {
               setSearchQuery('');
               setFilterPair('all');
@@ -162,6 +165,7 @@ export default function TradesPage() {
             Clear filters
           </Button>
         )}
+
       </motion.div>
 
       {/* Trade Table */}
