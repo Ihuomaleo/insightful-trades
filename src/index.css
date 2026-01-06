@@ -101,8 +101,50 @@
     --shadow-loss-glow: 0 0 20px rgba(239, 68, 68, 0.3);
   }
 
-  .dark {
-    /* Same as root - this is a dark-first design */
+  /* Light theme */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    
+    --card: 0 0% 98%;
+    --card-foreground: 222 47% 11%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    --primary: 217 91% 50%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 217 32% 92%;
+    --secondary-foreground: 222 47% 11%;
+    
+    --muted: 217 32% 95%;
+    --muted-foreground: 215 20% 45%;
+    
+    --accent: 217 32% 90%;
+    --accent-foreground: 222 47% 11%;
+    
+    --profit: 160 84% 35%;
+    --profit-foreground: 160 84% 10%;
+    
+    --loss: 0 84% 55%;
+    --loss-foreground: 0 84% 10%;
+    
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 217 32% 85%;
+    --input: 217 32% 90%;
+    --ring: 217 91% 50%;
+    
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 215 20% 35%;
+    --sidebar-primary: 217 91% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 32% 92%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 217 32% 88%;
+    --sidebar-ring: 217 91% 50%;
   }
 }
 
