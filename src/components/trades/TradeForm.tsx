@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -67,9 +67,10 @@ interface TradeFormProps {
   onSubmit: (data: TradeFormData) => void;
   isSubmitting?: boolean;
   defaultValues?: Partial<TradeFormData>;
+  mode?: 'create' | 'edit';
 }
 
-export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultValues }: TradeFormProps) {
+export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultValues, mode = 'create' }: TradeFormProps) {
   const [selectedSetups, setSelectedSetups] = useState<string[]>(defaultValues?.setups || []);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>(defaultValues?.emotions || []);
   const [beforeScreenshot, setBeforeScreenshot] = useState<string | null>(defaultValues?.before_screenshot || null);
@@ -95,6 +96,33 @@ export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultV
       ...defaultValues,
     },
   });
+
+  // Reset form when defaultValues change (e.g., when editing a different trade)
+  React.useEffect(() => {
+    if (open && defaultValues) {
+      form.reset({
+        pair: '',
+        direction: 'long',
+        entry_price: undefined,
+        exit_price: null,
+        stop_loss: undefined,
+        take_profit: null,
+        lot_size: 0.01,
+        commission: 0,
+        entry_time: new Date(),
+        exit_time: null,
+        status: 'open',
+        setups: [],
+        emotions: [],
+        notes: '',
+        ...defaultValues,
+      });
+      setSelectedSetups(defaultValues.setups || []);
+      setSelectedEmotions(defaultValues.emotions || []);
+      setBeforeScreenshot(defaultValues.before_screenshot || null);
+      setAfterScreenshot(defaultValues.after_screenshot || null);
+    }
+  }, [open, defaultValues, form]);
 
   const handleSubmit = (data: TradeFormData) => {
     onSubmit({
@@ -122,9 +150,9 @@ export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultV
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto scrollbar-thin">
         <SheetHeader>
-          <SheetTitle>Log New Trade</SheetTitle>
+          <SheetTitle>{mode === 'edit' ? 'Edit Trade' : 'Log New Trade'}</SheetTitle>
           <SheetDescription>
-            Enter your trade details to add it to your journal.
+            {mode === 'edit' ? 'Update your trade details.' : 'Enter your trade details to add it to your journal.'}
           </SheetDescription>
         </SheetHeader>
 
@@ -460,7 +488,7 @@ export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultV
             />
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Save Trade'}
+              {isSubmitting ? 'Saving...' : mode === 'edit' ? 'Update Trade' : 'Save Trade'}
             </Button>
           </form>
         </Form>

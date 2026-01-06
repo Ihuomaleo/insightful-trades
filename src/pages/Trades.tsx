@@ -13,11 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CURRENCY_PAIRS } from '@/types/trade';
+import { CURRENCY_PAIRS, Trade } from '@/types/trade';
 
 export default function TradesPage() {
-  const { trades, isLoading, addTrade, deleteTrade, isAdding } = useTrades();
+  const { trades, isLoading, addTrade, updateTrade, deleteTrade, isAdding, isUpdating } = useTrades();
   const [formOpen, setFormOpen] = useState(false);
+  const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPair, setFilterPair] = useState<string>('all');
   const [filterDirection, setFilterDirection] = useState<string>('all');
@@ -46,6 +47,21 @@ export default function TradesPage() {
       exit_time: data.exit_time?.toISOString() || null,
     });
     setFormOpen(false);
+  };
+
+  const handleEditTrade = (trade: Trade) => {
+    setEditingTrade(trade);
+  };
+
+  const handleUpdateTrade = (data: any) => {
+    if (!editingTrade) return;
+    updateTrade({
+      id: editingTrade.id,
+      ...data,
+      entry_time: data.entry_time.toISOString(),
+      exit_time: data.exit_time?.toISOString() || null,
+    });
+    setEditingTrade(null);
   };
 
   if (isLoading) {
@@ -157,15 +173,44 @@ export default function TradesPage() {
         <TradeTable
           trades={filteredTrades}
           onDelete={deleteTrade}
+          onEdit={handleEditTrade}
         />
       </motion.div>
 
-      {/* Trade Form */}
+      {/* Add Trade Form */}
       <TradeForm
         open={formOpen}
         onOpenChange={setFormOpen}
         onSubmit={handleAddTrade}
         isSubmitting={isAdding}
+        mode="create"
+      />
+
+      {/* Edit Trade Form */}
+      <TradeForm
+        open={!!editingTrade}
+        onOpenChange={(open) => !open && setEditingTrade(null)}
+        onSubmit={handleUpdateTrade}
+        isSubmitting={isUpdating}
+        mode="edit"
+        defaultValues={editingTrade ? {
+          pair: editingTrade.pair,
+          direction: editingTrade.direction as 'long' | 'short',
+          entry_price: editingTrade.entry_price,
+          exit_price: editingTrade.exit_price,
+          stop_loss: editingTrade.stop_loss,
+          take_profit: editingTrade.take_profit,
+          lot_size: editingTrade.lot_size,
+          commission: editingTrade.commission || 0,
+          entry_time: new Date(editingTrade.entry_time),
+          exit_time: editingTrade.exit_time ? new Date(editingTrade.exit_time) : null,
+          status: editingTrade.status as 'open' | 'closed',
+          setups: editingTrade.setups || [],
+          emotions: editingTrade.emotions || [],
+          notes: editingTrade.notes,
+          before_screenshot: editingTrade.before_screenshot,
+          after_screenshot: editingTrade.after_screenshot,
+        } : undefined}
       />
     </div>
   );
