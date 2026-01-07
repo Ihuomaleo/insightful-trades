@@ -91,7 +91,7 @@ export default function DashboardPage() {
             Mistake Filter
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center gap-6">
+        <CardContent className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-2">
             <Switch
               id="exclude-fomo"
@@ -114,14 +114,14 @@ export default function DashboardPage() {
           </div>
           {(excludeFOMO || excludeRuleBreak) && (
             <span className="text-xs text-muted-foreground">
-              Showing what-if scenario without mistake trades
+              Showing what-if scenario
             </span>
           )}
         </CardContent>
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatsCard
           title="Total P/L"
           value={`${stats.totalPnL >= 0 ? '+' : ''}$${stats.totalPnL.toLocaleString()}`}
@@ -157,7 +157,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Second Row Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatsCard
           title="Average Win"
           value={`+$${stats.avgWin.toFixed(2)}`}
