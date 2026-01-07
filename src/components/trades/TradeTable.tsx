@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUpRight, ArrowDownRight, MoreHorizontal, Trash2, Edit } from 'lucide-react';
@@ -20,14 +21,22 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CurrencyBadge } from './CurrencyBadge';
 import { Trade, calculatePnL, calculatePips, calculateRMultiple } from '@/types/trade';
+import { TradeDetailsModal } from './TradeDetailsModal';
 
 interface TradeTableProps {
   trades: Trade[];
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   onEdit?: (trade: Trade) => void;
 }
 
 export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
+  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const handleTradeClick = (trade: Trade) => {
+    setSelectedTrade(trade);
+    setDetailsOpen(true);
+  };
   if (trades.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -76,7 +85,8 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ delay: index * 0.02 }}
-                    className="border-b border-border/30 hover:bg-muted/20 transition-colors"
+                    className="border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer"
+                    onClick={() => handleTradeClick(trade)}
                   >
                     <TableCell>
                       <CurrencyBadge pair={trade.pair} />
@@ -126,7 +136,7 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
                     <TableCell className="text-sm text-muted-foreground hidden xl:table-cell">
                       {format(new Date(trade.entry_time), 'MMM dd, HH:mm')}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -140,13 +150,15 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
                               Edit
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem
-                            onClick={() => onDelete(trade.id)}
-                            className="text-loss focus:text-loss"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
+                          {onDelete && (
+                            <DropdownMenuItem
+                              onClick={() => onDelete(trade.id)}
+                              className="text-loss focus:text-loss"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -177,7 +189,8 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ delay: index * 0.02 }}
-                className="rounded-lg border border-border/50 bg-card p-4 space-y-3"
+                className="rounded-lg border border-border/50 bg-card p-4 space-y-3 cursor-pointer active:bg-muted/30"
+                onClick={() => handleTradeClick(trade)}
               >
                 {/* Header Row */}
                 <div className="flex items-center justify-between">
@@ -199,28 +212,32 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
                     <Badge variant={trade.status === 'open' ? 'outline' : 'secondary'} className="text-xs">
                       {trade.status}
                     </Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {onEdit && (
-                          <DropdownMenuItem onClick={() => onEdit(trade)}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onClick={() => onDelete(trade.id)}
-                          className="text-loss focus:text-loss"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {onEdit && (
+                            <DropdownMenuItem onClick={() => onEdit(trade)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {onDelete && (
+                            <DropdownMenuItem
+                              onClick={() => onDelete(trade.id)}
+                              className="text-loss focus:text-loss"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </div>
 
@@ -262,6 +279,13 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
           })}
         </AnimatePresence>
       </div>
+
+      {/* Trade Details Modal */}
+      <TradeDetailsModal
+        trade={selectedTrade}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+      />
     </>
   );
 }
