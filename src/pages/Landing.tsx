@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { TrendingUp, BarChart3, Target, Shield, ArrowRight, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { Header } from '@/components/layout/Header';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -18,26 +19,14 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Sticky Header */}
+      <Header />
+
       {/* Hero Section */}
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden pt-16">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-profit/5" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent" />
-
-        {/* Header */}
-        <header className="relative z-10 container mx-auto px-6 py-6">
-          <nav className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-profit flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xl font-bold">TradeJournal</span>
-            </div>
-            <Button onClick={handleGetStarted} variant="outline">
-              {user ? 'Dashboard' : 'Sign In'}
-            </Button>
-          </nav>
-        </header>
 
         {/* Hero Content */}
         <div className="relative z-10 container mx-auto px-6 pt-16 pb-24">
