@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, X } from 'lucide-react';
+import { CalendarIcon, X, Plus, Check } from 'lucide-react';
 import { ScreenshotUpload } from './ScreenshotUpload';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -39,9 +39,18 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { CURRENCY_PAIRS, SETUPS, EMOTIONS } from '@/types/trade';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+
+// Regex for XXX/XXX format (3-5 uppercase letters each side)
+const PAIR_FORMAT_REGEX = /^[A-Z]{2,5}\/[A-Z]{2,5}$/;
 
 const tradeSchema = z.object({
-  pair: z.string().min(1, 'Select a currency pair'),
+  pair: z.string().min(1, 'Select a currency pair').refine(
+    (val) => PAIR_FORMAT_REGEX.test(val),
+    { message: 'Format must be XXX/XXX (e.g., BTC/USD)' }
+  ),
   direction: z.enum(['long', 'short']),
   entry_price: z.coerce.number().positive('Entry price must be positive'),
   exit_price: z.coerce.number().positive('Exit price must be positive').optional().nullable(),
@@ -71,11 +80,48 @@ interface TradeFormProps {
 }
 
 export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultValues, mode = 'create' }: TradeFormProps) {
+  const { user } = useAuth();
   const [selectedSetups, setSelectedSetups] = useState<string[]>(defaultValues?.setups || []);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>(defaultValues?.emotions || []);
   const [beforeScreenshot, setBeforeScreenshot] = useState<string | null>(defaultValues?.before_screenshot || null);
   const [afterScreenshot, setAfterScreenshot] = useState<string | null>(defaultValues?.after_screenshot || null);
   const [customPair, setCustomPair] = useState<string>('');
+  const [savedCustomPairs, setSavedCustomPairs] = useState<string[]>([]);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+
+  // Load saved custom pairs
+  useEffect(() => {
+    if (user && open) {
+      supabase
+        .from('custom_currency_pairs')
+        .select('pair')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+        .then(({ data }) => {
+          if (data) {
+            setSavedCustomPairs(data.map(d => d.pair));
+          }
+        });
+    }
+  }, [user, open]);
+
+  const saveCustomPair = async (pair: string) => {
+    if (!user || !PAIR_FORMAT_REGEX.test(pair)) return;
+    
+    // Check if already saved
+    if (savedCustomPairs.includes(pair) || CURRENCY_PAIRS.includes(pair as typeof CURRENCY_PAIRS[number])) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('custom_currency_pairs')
+      .insert({ user_id: user.id, pair });
+
+    if (!error) {
+      setSavedCustomPairs(prev => [...prev, pair]);
+      toast.success(`${pair} saved to your pairs`);
+    }
+  };
 
   const form = useForm<TradeFormData>({
     resolver: zodResolver(tradeSchema),
@@ -164,46 +210,93 @@ export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultV
               <FormField
                 control={form.control}
                 name="pair"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Currency Pair</FormLabel>
-                    <Select 
-                      onValueChange={(value) => {
-                        if (value === 'custom') {
-                          setCustomPair('');
-                        } else {
-                          field.onChange(value);
-                        }
-                      }} 
-                      value={CURRENCY_PAIRS.includes(field.value as typeof CURRENCY_PAIRS[number]) ? field.value : (field.value ? 'custom' : '')}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select pair" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {CURRENCY_PAIRS.map(pair => (
-                          <SelectItem key={pair} value={pair}>{pair}</SelectItem>
-                        ))}
-                        <SelectItem value="custom">+ Add Custom</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {(form.watch('pair') === 'custom' || (!CURRENCY_PAIRS.includes(field.value as typeof CURRENCY_PAIRS[number]) && field.value)) && (
-                      <Input
-                        placeholder="e.g. BTC/USD"
-                        className="mt-2 font-mono"
-                        value={CURRENCY_PAIRS.includes(field.value as typeof CURRENCY_PAIRS[number]) ? customPair : (field.value || customPair)}
-                        onChange={(e) => {
-                          const value = e.target.value.toUpperCase();
-                          setCustomPair(value);
-                          field.onChange(value);
-                        }}
-                      />
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const allPairs = [...CURRENCY_PAIRS, ...savedCustomPairs];
+                  const isKnownPair = allPairs.includes(field.value);
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>Currency Pair</FormLabel>
+                      {!showCustomInput ? (
+                        <Select 
+                          onValueChange={(value) => {
+                            if (value === 'custom') {
+                              setShowCustomInput(true);
+                              setCustomPair('');
+                              field.onChange('');
+                            } else {
+                              field.onChange(value);
+                            }
+                          }} 
+                          value={isKnownPair ? field.value : ''}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select pair" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {CURRENCY_PAIRS.map(pair => (
+                              <SelectItem key={pair} value={pair}>{pair}</SelectItem>
+                            ))}
+                            {savedCustomPairs.length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Your Custom Pairs</div>
+                                {savedCustomPairs.map(pair => (
+                                  <SelectItem key={pair} value={pair}>{pair}</SelectItem>
+                                ))}
+                              </>
+                            )}
+                            <SelectItem value="custom">+ Add Custom</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="XXX/XXX (e.g., BTC/USD)"
+                              className="font-mono flex-1"
+                              value={customPair}
+                              onChange={(e) => {
+                                const value = e.target.value.toUpperCase();
+                                setCustomPair(value);
+                                field.onChange(value);
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="outline"
+                              onClick={() => {
+                                if (PAIR_FORMAT_REGEX.test(customPair)) {
+                                  saveCustomPair(customPair);
+                                }
+                              }}
+                              disabled={!PAIR_FORMAT_REGEX.test(customPair) || savedCustomPairs.includes(customPair)}
+                              title="Save this pair for future use"
+                            >
+                              {savedCustomPairs.includes(customPair) ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              setShowCustomInput(false);
+                              setCustomPair('');
+                              field.onChange('');
+                            }}
+                          >
+                            ← Back to list
+                          </Button>
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
