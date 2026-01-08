@@ -236,6 +236,8 @@ export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultV
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value="custom">+ Add Custom</SelectItem>
+                            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Standard Pairs</div>
                             {CURRENCY_PAIRS.map(pair => (
                               <SelectItem key={pair} value={pair}>{pair}</SelectItem>
                             ))}
@@ -247,7 +249,6 @@ export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultV
                                 ))}
                               </>
                             )}
-                            <SelectItem value="custom">+ Add Custom</SelectItem>
                           </SelectContent>
                         </Select>
                       ) : (
