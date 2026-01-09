@@ -15,6 +15,7 @@ import {
 import { useTrades, useTradeStats } from '@/hooks/useTrades';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EquityCurve } from '@/components/dashboard/EquityCurve';
+import { CalendarHeatmap } from '@/components/analytics/CalendarHeatmap';
 import { Trade, calculatePnL, getTradingSession, SETUPS, EMOTIONS } from '@/types/trade';
 import { TrendingUp, TrendingDown, AlertTriangle, Heart, Brain, Zap } from 'lucide-react';
 
@@ -205,6 +206,9 @@ export default function AnalyticsPage() {
 
       {/* Equity Curve with Comparison */}
       <EquityCurve trades={trades} showComparison={true} />
+
+      {/* Calendar Heatmap */}
+      <CalendarHeatmap trades={trades} />
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
