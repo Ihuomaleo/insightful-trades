@@ -203,8 +203,8 @@ export default function AnalyticsPage() {
         </p>
       </motion.div>
 
-      {/* Equity Curve */}
-      <EquityCurve trades={trades} />
+      {/* Equity Curve with Comparison */}
+      <EquityCurve trades={trades} showComparison={true} />
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
