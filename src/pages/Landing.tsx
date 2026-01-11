@@ -71,7 +71,7 @@ export default function LandingPage() {
       </div>
 
       {/* Features Section */}
-      <section className="py-24 bg-muted/20">
+      <section id="features" className="py-24 bg-muted/20 scroll-mt-20">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -134,8 +134,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-24">
+      {/* Stats/About Section */}
+      <section id="about" className="py-24 scroll-mt-20">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
@@ -160,8 +160,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-br from-primary/10 via-background to-profit/10">
+      {/* Pricing/CTA Section */}
+      <section id="pricing" className="py-24 bg-gradient-to-br from-primary/10 via-background to-profit/10 scroll-mt-20">
         <div className="container mx-auto px-6 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
