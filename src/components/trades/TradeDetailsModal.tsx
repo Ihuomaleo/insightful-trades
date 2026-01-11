@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { ArrowUpRight, ArrowDownRight, X } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -11,11 +11,47 @@ import { Badge } from '@/components/ui/badge';
 import { CurrencyBadge } from './CurrencyBadge';
 import { Trade, calculatePnL, calculatePips, calculateRMultiple, getTradingSession } from '@/types/trade';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useSignedUrl } from '@/hooks/useSignedUrl';
 
 interface TradeDetailsModalProps {
   trade: Trade | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+function ScreenshotImage({ path, alt }: { path: string; alt: string }) {
+  const { signedUrl, isLoading, error } = useSignedUrl(path);
+
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border border-border/50 w-full h-32 flex items-center justify-center bg-muted/30">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !signedUrl) {
+    return (
+      <div className="rounded-lg border border-border/50 w-full h-32 flex items-center justify-center bg-muted/30">
+        <p className="text-xs text-muted-foreground">Failed to load image</p>
+      </div>
+    );
+  }
+
+  return (
+    <a 
+      href={signedUrl} 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className="block"
+    >
+      <img
+        src={signedUrl}
+        alt={alt}
+        className="rounded-lg border border-border/50 w-full object-cover hover:opacity-80 transition-opacity cursor-pointer"
+      />
+    </a>
+  );
 }
 
 export function TradeDetailsModal({ trade, open, onOpenChange }: TradeDetailsModalProps) {
@@ -150,35 +186,13 @@ export function TradeDetailsModal({ trade, open, onOpenChange }: TradeDetailsMod
                   {trade.before_screenshot && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-2">Before</p>
-                      <a 
-                        href={trade.before_screenshot} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <img
-                          src={trade.before_screenshot}
-                          alt="Before trade"
-                          className="rounded-lg border border-border/50 w-full object-cover hover:opacity-80 transition-opacity cursor-pointer"
-                        />
-                      </a>
+                      <ScreenshotImage path={trade.before_screenshot} alt="Before trade" />
                     </div>
                   )}
                   {trade.after_screenshot && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-2">After</p>
-                      <a 
-                        href={trade.after_screenshot} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="block"
-                      >
-                        <img
-                          src={trade.after_screenshot}
-                          alt="After trade"
-                          className="rounded-lg border border-border/50 w-full object-cover hover:opacity-80 transition-opacity cursor-pointer"
-                        />
-                      </a>
+                      <ScreenshotImage path={trade.after_screenshot} alt="After trade" />
                     </div>
                   )}
                 </div>
