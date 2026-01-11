@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { createSignedUrl } from '@/hooks/useSignedUrl';
 
 interface ScreenshotUploadProps {
   label: string;
@@ -14,8 +15,36 @@ interface ScreenshotUploadProps {
 export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadProps) {
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
-  const [preview, setPreview] = useState<string | null>(value || null);
+  const [preview, setPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load signed URL for existing value (stored path)
+  useEffect(() => {
+    if (!value) {
+      setPreview(null);
+      return;
+    }
+
+    const loadSignedUrl = async () => {
+      try {
+        // Extract file path from stored value
+        let filePath = value;
+        const bucketMarker = '/trade-screenshots/';
+        if (value.includes(bucketMarker)) {
+          const parts = value.split(bucketMarker);
+          filePath = parts[parts.length - 1];
+        }
+        
+        const signedUrl = await createSignedUrl(filePath);
+        setPreview(signedUrl);
+      } catch (err) {
+        console.error('Failed to load screenshot preview:', err);
+        setPreview(null);
+      }
+    };
+
+    loadSignedUrl();
+  }, [value]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,13 +84,12 @@ export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadPro
 
       if (error) throw error;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('trade-screenshots')
-        .getPublicUrl(data.path);
-
-      setPreview(urlData.publicUrl);
-      onChange(urlData.publicUrl);
+      // Get signed URL for preview and store the file path
+      const signedUrl = await createSignedUrl(data.path);
+      
+      setPreview(signedUrl);
+      // Store the file path (not the signed URL) so we can regenerate signed URLs later
+      onChange(data.path);
 
       toast({
         title: 'Screenshot uploaded',
@@ -79,14 +107,18 @@ export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadPro
   };
 
   const handleRemove = async () => {
-    if (preview && user) {
-      // Extract file path from URL
-      const urlParts = preview.split('/trade-screenshots/');
-      if (urlParts[1]) {
-        await supabase.storage
-          .from('trade-screenshots')
-          .remove([urlParts[1]]);
+    if (value && user) {
+      // Use the stored path directly (not the signed URL)
+      let filePath = value;
+      const bucketMarker = '/trade-screenshots/';
+      if (value.includes(bucketMarker)) {
+        const parts = value.split(bucketMarker);
+        filePath = parts[parts.length - 1];
       }
+      
+      await supabase.storage
+        .from('trade-screenshots')
+        .remove([filePath]);
     }
     setPreview(null);
     onChange(null);
