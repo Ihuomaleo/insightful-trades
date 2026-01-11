@@ -121,9 +121,43 @@ export default function SettingsPage() {
     }
   };
 
+  // Validate display name - allow alphanumeric, spaces, and basic punctuation only
+  const validateDisplayName = (name: string): { valid: boolean; error?: string } => {
+    if (!name.trim()) {
+      return { valid: false, error: 'Display name cannot be empty.' };
+    }
+    if (name.length > 100) {
+      return { valid: false, error: 'Display name must be 100 characters or less.' };
+    }
+    // Only allow alphanumeric, spaces, hyphens, underscores, and common punctuation
+    const safePattern = /^[a-zA-Z0-9\s\-_.']+$/;
+    if (!safePattern.test(name)) {
+      return { valid: false, error: 'Display name contains invalid characters. Use only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes.' };
+    }
+    // Check for potential HTML/script injection patterns
+    const dangerousPatterns = /<[^>]*>|javascript:|on\w+=/i;
+    if (dangerousPatterns.test(name)) {
+      return { valid: false, error: 'Display name contains invalid characters.' };
+    }
+    return { valid: true };
+  };
+
   const handleUpdateDisplayName = async () => {
+    const validation = validateDisplayName(displayName);
+    if (!validation.valid) {
+      toast({
+        title: 'Error',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Sanitize by trimming whitespace
+    const sanitizedName = displayName.trim();
+
     const { error } = await supabase.auth.updateUser({
-      data: { display_name: displayName }
+      data: { display_name: sanitizedName }
     });
 
     if (error) {
@@ -133,6 +167,7 @@ export default function SettingsPage() {
         variant: 'destructive',
       });
     } else {
+      setDisplayName(sanitizedName);
       toast({
         title: 'Profile Updated',
         description: 'Your display name has been updated.',
