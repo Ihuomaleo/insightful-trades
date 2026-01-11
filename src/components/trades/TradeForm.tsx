@@ -63,7 +63,7 @@ const tradeSchema = z.object({
   status: z.enum(['open', 'closed']).default('open'),
   setups: z.array(z.string()).default([]),
   emotions: z.array(z.string()).default([]),
-  notes: z.string().optional().nullable(),
+  notes: z.string().max(10000, 'Notes must be under 10,000 characters').optional().nullable(),
   before_screenshot: z.string().optional().nullable(),
   after_screenshot: z.string().optional().nullable(),
 });
@@ -595,6 +595,7 @@ export function TradeForm({ open, onOpenChange, onSubmit, isSubmitting, defaultV
                       placeholder="Trade rationale, lessons learned..."
                       className="resize-none"
                       rows={3}
+                      maxLength={10000}
                       {...field}
                       value={field.value ?? ''}
                     />
