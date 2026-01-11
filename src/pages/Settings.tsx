@@ -58,6 +58,16 @@ export default function SettingsPage() {
   };
 
   const handleUpdatePassword = async () => {
+    // Verify current password is provided
+    if (!currentPassword) {
+      toast({
+        title: 'Error',
+        description: 'Please enter your current password.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       toast({
         title: 'Error',
@@ -76,6 +86,22 @@ export default function SettingsPage() {
       return;
     }
 
+    // Verify current password by re-authenticating
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user?.email || '',
+      password: currentPassword,
+    });
+
+    if (signInError) {
+      toast({
+        title: 'Error',
+        description: 'Current password is incorrect.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Now update password
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     
     if (error) {
