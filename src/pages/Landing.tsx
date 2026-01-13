@@ -197,6 +197,14 @@ export default function LandingPage() {
               </div>
               <span className="font-semibold">Trade Journal</span>
             </div>
+            <div className="flex items-center gap-6">
+              <a href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Privacy Policy
+              </a>
+              <a href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Terms of Service
+              </a>
+            </div>
             <p className="text-sm text-muted-foreground">
               © 2026 Trade Journal. Built for serious traders.
             </p>
