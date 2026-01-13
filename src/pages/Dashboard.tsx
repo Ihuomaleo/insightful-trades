@@ -76,7 +76,9 @@ export default function DashboardPage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <h1 className="text-2xl font-semibold">
+            {isDemo ? 'Dashboard' : `Welcome back${user?.user_metadata?.display_name ? `, ${user.user_metadata.display_name}` : user?.email ? `, ${user.email.split('@')[0]}` : ''}`}
+          </h1>
           <p className="text-muted-foreground">
             {isDemo ? 'Demo trading performance data' : 'Overview of your trading performance'}
           </p>

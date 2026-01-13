@@ -13,9 +13,12 @@ import { Separator } from '@/components/ui/separator';
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -80,6 +83,30 @@ export default function AuthPage() {
       setGoogleLoading(false);
     }
     // Don't set loading to false on success - redirect will handle cleanup
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetLoading(true);
+
+    const { error } = await resetPassword(resetEmail);
+
+    if (error) {
+      toast({
+        title: 'Reset Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Check Your Email',
+        description: 'We sent you a password reset link.',
+      });
+      setShowForgotPassword(false);
+      setResetEmail('');
+    }
+
+    setResetLoading(false);
   };
 
   return (
@@ -151,6 +178,16 @@ export default function AuthPage() {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </button>
                   </div>
 
                   <Button type="submit" className="w-full" disabled={loading || googleLoading}>
@@ -291,6 +328,63 @@ export default function AuthPage() {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Forgot Password Modal */}
+        {showForgotPassword && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowForgotPassword(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Card className="w-full max-w-md border-border/50 bg-card shadow-elevated">
+                <CardHeader>
+                  <CardTitle>Reset Password</CardTitle>
+                  <CardDescription>
+                    Enter your email and we'll send you a reset link
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-email">Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="reset-email"
+                          type="email"
+                          placeholder="trader@example.com"
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setShowForgotPassword(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" className="flex-1" disabled={resetLoading}>
+                        {resetLoading ? 'Sending...' : 'Send Reset Link'}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
+        )}
 
         {/* Footer */}
         <p className="text-center text-sm text-muted-foreground mt-6">
