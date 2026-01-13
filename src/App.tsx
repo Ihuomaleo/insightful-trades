@@ -28,8 +28,8 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <CookieConsent />
           <BrowserRouter>
+            <CookieConsent />
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<LandingPage />} />
