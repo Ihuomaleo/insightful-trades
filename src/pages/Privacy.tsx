@@ -71,9 +71,17 @@ export default function PrivacyPage() {
                 </a>
                 , including the Limited Use requirements.
               </p>
-              <p className="text-muted-foreground leading-relaxed">
-                We do not use Google user data for any purpose other than authenticating your identity and providing you access to your Trade Journal account.
-              </p>
+              <div className="mt-4 space-y-3">
+                <p className="text-muted-foreground leading-relaxed">
+                  <strong className="text-foreground">Our commitments regarding Google user data:</strong>
+                </p>
+                <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
+                  <li>We only collect basic profile information (email and name) for authentication purposes.</li>
+                  <li>We do not use Google user data for advertising or marketing purposes.</li>
+                  <li>We do not sell user data to third parties.</li>
+                  <li>We do not allow humans to read user data unless we have explicit user consent for troubleshooting purposes.</li>
+                </ul>
+              </div>
             </section>
 
             <section className="space-y-4">

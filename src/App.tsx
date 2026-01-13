@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { CookieConsent } from "@/components/CookieConsent";
 import LandingPage from "./pages/Landing";
 import AuthPage from "./pages/Auth";
 import DashboardPage from "./pages/Dashboard";
@@ -27,6 +28,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <CookieConsent />
           <BrowserRouter>
             <Routes>
               {/* Public routes */}
