@@ -15,6 +15,7 @@ import TradesPage from "./pages/Trades";
 import AnalyticsPage from "./pages/Analytics";
 import CalendarPage from "./pages/Calendar";
 import SettingsPage from "./pages/Settings";
+import ProfilePage from "./pages/Profile";
 import PrivacyPage from "./pages/Privacy";
 import TermsPage from "./pages/Terms";
 import NotFound from "./pages/NotFound";
@@ -50,6 +51,7 @@ const App = () => (
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
               </Route>
 
               {/* Catch-all */}

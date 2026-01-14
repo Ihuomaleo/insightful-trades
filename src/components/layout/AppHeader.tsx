@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Settings,
   LogOut,
+  User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +21,7 @@ const navItems = [
   { icon: BookOpen, label: 'Trade Log', path: '/trades' },
   { icon: BarChart3, label: 'Analytics', path: '/analytics' },
   { icon: CalendarDays, label: 'Calendar', path: '/calendar' },
+  { icon: User, label: 'Profile', path: '/profile' },
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 

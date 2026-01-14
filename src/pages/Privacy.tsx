@@ -56,20 +56,8 @@ export default function PrivacyPage() {
 
             <section className="space-y-4 bg-card/50 p-6 rounded-xl border border-border">
               <h2 className="text-2xl font-semibold text-foreground">Google API Disclosure</h2>
-              <p className="text-muted-foreground leading-relaxed">
-                Trade Journal uses Google APIs to provide secure and convenient authentication services. When you choose to sign in with Google, we access your basic profile information (email and name) to create and manage your account.
-              </p>
               <p className="text-foreground leading-relaxed font-medium">
-                Trade Journal's use and transfer of information received from Google APIs to any other app will adhere to the{' '}
-                <a 
-                  href="https://developers.google.com/terms/api-services-user-data-policy" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Google API Services User Data Policy
-                </a>
-                , including the Limited Use requirements.
+                Trade Journal's use and transfer of information received from Google APIs to any other app will adhere to the Google API Services User Data Policy, including the Limited Use requirements.
               </p>
               <div className="mt-4 space-y-3">
                 <p className="text-muted-foreground leading-relaxed">
