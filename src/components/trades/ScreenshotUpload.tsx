@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +16,7 @@ export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadPro
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [isHovered, setIsHovered] = useState(false); // Track focus to prevent double-pasting
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Load signed URL for existing value (stored path)
@@ -27,7 +28,6 @@ export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadPro
 
     const loadSignedUrl = async () => {
       try {
-        // Extract file path from stored value
         let filePath = value;
         const bucketMarker = '/trade-screenshots/';
         if (value.includes(bucketMarker)) {
@@ -46,21 +46,18 @@ export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadPro
     loadSignedUrl();
   }, [value]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+  const processFile = useCallback(async (file: File) => {
+    if (!user) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast({
         title: 'Invalid file type',
-        description: 'Please upload an image file.',
+        description: 'Please upload or paste an image file.',
         variant: 'destructive',
       });
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: 'File too large',
@@ -73,22 +70,18 @@ export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadPro
     setIsUploading(true);
 
     try {
-      // Create unique filename
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split('.').pop() || 'png';
       const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-      // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from('trade-screenshots')
         .upload(fileName, file);
 
       if (error) throw error;
 
-      // Get signed URL for preview and store the file path
       const signedUrl = await createSignedUrl(data.path);
       
       setPreview(signedUrl);
-      // Store the file path (not the signed URL) so we can regenerate signed URLs later
       onChange(data.path);
 
       toast({
@@ -104,11 +97,40 @@ export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadPro
     } finally {
       setIsUploading(false);
     }
+  }, [user, onChange]);
+
+  // Handle Clipboard Paste with focus check
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      // Only proceed if mouse is hovering over THIS instance and no preview exists
+      if (!isHovered || preview || isUploading) return;
+
+      const items = event.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            processFile(file);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [preview, isUploading, processFile, isHovered]);
+
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
   };
 
   const handleRemove = async () => {
     if (value && user) {
-      // Use the stored path directly (not the signed URL)
       let filePath = value;
       const bucketMarker = '/trade-screenshots/';
       if (value.includes(bucketMarker)) {
@@ -128,7 +150,11 @@ export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadPro
   };
 
   return (
-    <div className="space-y-2">
+    <div 
+      className="space-y-2"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <label className="text-sm font-medium leading-none">{label}</label>
       
       <input
@@ -162,9 +188,10 @@ export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadPro
           disabled={isUploading}
           className={cn(
             'w-full h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg',
-            'flex flex-col items-center justify-center gap-2 text-muted-foreground',
+            'flex flex-col items-center justify-center gap-2 text-muted-foreground text-center px-4',
             'hover:border-primary/50 hover:text-primary transition-colors',
-            'disabled:opacity-50 disabled:cursor-not-allowed'
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            isHovered && !isUploading && 'border-primary/50 bg-primary/5'
           )}
         >
           {isUploading ? (
@@ -178,7 +205,10 @@ export function ScreenshotUpload({ label, value, onChange }: ScreenshotUploadPro
                 <ImageIcon className="h-6 w-6" />
                 <Upload className="h-5 w-5" />
               </div>
-              <span className="text-sm">Click to upload</span>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Click to upload</p>
+                <p className="text-xs text-muted-foreground">or hover & paste (Ctrl+V)</p>
+              </div>
             </>
           )}
         </button>

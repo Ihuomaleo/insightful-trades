@@ -1,23 +1,30 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Trade, TradeStats, calculatePnL, calculateRMultiple } from '@/types/trade';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
 
-export function useTrades() {
+export function useTrades(limit?: number) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const tradesQuery = useQuery({
-    queryKey: ['trades', user?.id],
+    queryKey: ['trades', user?.id, limit],
     queryFn: async () => {
       if (!user) return [];
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('trades')
         .select('*')
         .eq('user_id', user.id)
         .order('entry_time', { ascending: false });
+
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data as Trade[];
@@ -123,7 +130,6 @@ export function useTrades() {
 export function useTradeStats(trades: Trade[], excludeEmotions: string[] = []): TradeStats {
   const closedTrades = trades.filter(t => t.status === 'closed' && t.exit_price !== null);
   
-  // Filter out trades with excluded emotions
   const filteredTrades = excludeEmotions.length > 0
     ? closedTrades.filter(t => !t.emotions.some(e => excludeEmotions.includes(e)))
     : closedTrades;
@@ -177,4 +183,32 @@ export function useTradeStats(trades: Trade[], excludeEmotions: string[] = []): 
     bestTrade: Math.round(bestTrade * 100) / 100,
     worstTrade: Math.round(worstTrade * 100) / 100,
   };
+}
+
+/**
+ * New hook to calculate statistics per setup/strategy
+ */
+export function useStrategyStats(trades: Trade[]) {
+  return useMemo(() => {
+    const strategyMap: Record<string, { name: string; pnl: number; wins: number; total: number }> = {};
+
+    trades.filter(t => t.status === 'closed' && t.exit_price !== null).forEach(trade => {
+      trade.setups.forEach(setup => {
+        if (!strategyMap[setup]) {
+          strategyMap[setup] = { name: setup, pnl: 0, wins: 0, total: 0 };
+        }
+        
+        const pnl = calculatePnL(trade.pair, trade.entry_price, trade.exit_price!, trade.lot_size, trade.direction, trade.commission);
+        strategyMap[setup].pnl += pnl;
+        strategyMap[setup].total += 1;
+        if (pnl > 0) strategyMap[setup].wins += 1;
+      });
+    });
+
+    return Object.values(strategyMap).map(s => ({
+      ...s,
+      winRate: s.total > 0 ? Math.round((s.wins / s.total) * 100) : 0,
+      pnl: Math.round(s.pnl * 100) / 100
+    })).sort((a, b) => b.pnl - a.pnl);
+  }, [trades]);
 }

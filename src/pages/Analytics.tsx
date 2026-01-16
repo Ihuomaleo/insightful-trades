@@ -12,17 +12,18 @@ import {
   PieChart,
   Pie,
 } from 'recharts';
-import { useTrades, useTradeStats } from '@/hooks/useTrades';
+import { useTrades, useTradeStats, useStrategyStats } from '@/hooks/useTrades';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EquityCurve } from '@/components/dashboard/EquityCurve';
 import { CalendarHeatmap } from '@/components/analytics/CalendarHeatmap';
 import { StreakTracker } from '@/components/analytics/StreakTracker';
-import { Trade, calculatePnL, getTradingSession, SETUPS, EMOTIONS } from '@/types/trade';
+import { calculatePnL, getTradingSession } from '@/types/trade';
 import { TrendingUp, TrendingDown, AlertTriangle, Heart, Brain, Zap } from 'lucide-react';
 
 export default function AnalyticsPage() {
   const { trades, isLoading } = useTrades();
   const stats = useTradeStats(trades);
+  const strategyData = useStrategyStats(trades);
 
   // Session Analysis
   const sessionData = useMemo(() => {
@@ -51,44 +52,11 @@ export default function AnalyticsPage() {
       }));
   }, [trades]);
 
-  // Setup Performance
-  const setupData = useMemo(() => {
-    const closedTrades = trades.filter(t => t.status === 'closed' && t.exit_price !== null);
-    const setupStats: Record<string, { wins: number; losses: number; pnl: number }> = {};
-
-    closedTrades.forEach(trade => {
-      const pnl = calculatePnL(trade.pair, trade.entry_price, trade.exit_price!, trade.lot_size, trade.direction, trade.commission);
-      const isWin = pnl > 0;
-
-      trade.setups.forEach(setup => {
-        if (!setupStats[setup]) {
-          setupStats[setup] = { wins: 0, losses: 0, pnl: 0 };
-        }
-        if (isWin) {
-          setupStats[setup].wins += 1;
-        } else {
-          setupStats[setup].losses += 1;
-        }
-        setupStats[setup].pnl += pnl;
-      });
-    });
-
-    return Object.entries(setupStats)
-      .map(([setup, data]) => ({
-        setup,
-        winRate: Math.round((data.wins / (data.wins + data.losses)) * 100),
-        totalTrades: data.wins + data.losses,
-        pnl: Math.round(data.pnl * 100) / 100,
-      }))
-      .sort((a, b) => b.pnl - a.pnl);
-  }, [trades]);
-
   // Emotion Impact Analysis
   const emotionData = useMemo(() => {
     const closedTrades = trades.filter(t => t.status === 'closed' && t.exit_price !== null);
     const emotionStats: Record<string, { wins: number; losses: number; pnl: number; count: number }> = {};
 
-    // Categorize emotions as positive or negative
     const negativeEmotions = ['FOMO', 'Greedy', 'Fearful', 'Revenge Trading', 'Overconfident', 'Impulsive', 'Rule Break'];
     const positiveEmotions = ['Disciplined', 'Confident', 'Patient'];
 
@@ -121,7 +89,6 @@ export default function AnalyticsPage() {
       }))
       .sort((a, b) => b.pnl - a.pnl);
 
-    // Calculate "What If" - performance without negative emotion trades
     const negativeEmotionTrades = closedTrades.filter(t => 
       t.emotions.some(e => negativeEmotions.includes(e))
     );
@@ -194,317 +161,138 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-xl md:text-2xl font-semibold">Strategy Analytics</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Deep dive into your trading performance
-        </p>
+        <p className="text-sm md:text-base text-muted-foreground">Deep dive into your trading performance</p>
       </motion.div>
 
-      {/* Equity Curve with Comparison */}
       <EquityCurve trades={trades} showComparison={true} />
-
-      {/* Calendar Heatmap */}
       <CalendarHeatmap trades={trades} />
-
-      {/* Streak Tracker */}
       <StreakTracker trades={trades} />
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Session Performance */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card className="border-border/50 bg-card/80">
-            <CardHeader className="pb-2 md:pb-4">
-              <CardTitle className="text-base md:text-lg font-medium">Session Performance</CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 md:px-6">
-              {sessionData.length === 0 ? (
-                <div className="h-[200px] md:h-[250px] flex items-center justify-center text-muted-foreground text-sm">
-                  No session data available
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={200} className="md:!h-[250px]">
-                  <BarChart data={sessionData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(217, 32%, 18%)" />
-                    <XAxis
-                      dataKey="session"
-                      stroke="hsl(215, 20%, 55%)"
-                      fontSize={10}
-                      tickLine={false}
-                      axisLine={false}
-                      interval={0}
-                      tick={{ fontSize: 10 }}
-                    />
-                    <YAxis
-                      stroke="hsl(215, 20%, 55%)"
-                      fontSize={10}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `$${value}`}
-                      width={45}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(222, 47%, 8%)',
-                        border: '1px solid hsl(217, 32%, 18%)',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                      formatter={(value: number, name: string) => {
-                        if (name === 'pnl') return [`$${value.toFixed(2)}`, 'P/L'];
-                        return [value, name];
-                      }}
-                    />
-                    <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
-                      {sessionData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={entry.pnl >= 0 ? 'hsl(160, 84%, 39%)' : 'hsl(0, 84%, 60%)'}
-                        />
+      {/* New Strategy Performance Breakdown */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <Card className="border-border/50 bg-card/80">
+          <CardHeader>
+            <CardTitle className="text-base md:text-lg font-medium">Strategy P/L Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {strategyData.length === 0 ? (
+              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">No strategy data available</div>
+            ) : (
+              <div className="h-[350px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={strategyData} layout="vertical" margin={{ left: 40, right: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(217, 32%, 18%)" />
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" width={100} fontSize={12} stroke="#888" tickLine={false} axisLine={false} />
+                    <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }} />
+                    <Bar dataKey="pnl" radius={[0, 4, 4, 0]}>
+                      {strategyData.map((entry, index) => (
+                        <Cell key={index} fill={entry.pnl >= 0 ? 'hsl(160, 84%, 39%)' : 'hsl(0, 84%, 60%)'} />
                       ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Pair Distribution */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card className="border-border/50 bg-card/80">
-            <CardHeader className="pb-2 md:pb-4">
-              <CardTitle className="text-base md:text-lg font-medium">Pair Distribution</CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 md:px-6">
-              {pairDistribution.length === 0 ? (
-                <div className="h-[200px] md:h-[250px] flex items-center justify-center text-muted-foreground text-sm">
-                  No pair data available
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <ResponsiveContainer width="100%" height={180} className="sm:!w-1/2 sm:!h-[220px]">
-                    <PieChart>
-                      <Pie
-                        data={pairDistribution}
-                        dataKey="count"
-                        nameKey="pair"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={35}
-                        outerRadius={70}
-                        paddingAngle={2}
-                      >
-                        {pairDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(222, 47%, 8%)',
-                          border: '1px solid hsl(217, 32%, 18%)',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="w-full sm:flex-1 grid grid-cols-2 sm:grid-cols-1 gap-1.5 sm:space-y-1.5">
-                    {pairDistribution.map((item, index) => (
-                      <div key={item.pair} className="flex items-center gap-2 text-xs sm:text-sm">
-                        <div
-                          className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        />
-                        <span className="font-mono truncate">{item.pair}</span>
-                        <span className="text-muted-foreground ml-auto">{item.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* Setup Performance */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-      >
-        <Card className="border-border/50 bg-card/80">
-          <CardHeader className="pb-2 md:pb-4">
-            <CardTitle className="text-base md:text-lg font-medium">Setup Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {setupData.length === 0 ? (
-              <div className="h-[150px] md:h-[200px] flex items-center justify-center text-muted-foreground text-sm text-center px-4">
-                No setup data available. Tag your trades with setups to see performance.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-                {setupData.map(setup => (
-                  <div
-                    key={setup.setup}
-                    className="p-3 md:p-4 rounded-lg bg-muted/30 border border-border/50"
-                  >
-                    <div className="flex items-center justify-between mb-1.5 md:mb-2">
-                      <span className="font-medium text-sm md:text-base truncate mr-2">{setup.setup}</span>
-                      <span className={`font-mono text-xs md:text-sm flex-shrink-0 ${setup.pnl >= 0 ? 'text-profit' : 'text-loss'}`}>
-                        {setup.pnl >= 0 ? '+' : ''}${setup.pnl}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
-                      <span>Win Rate: <strong className="text-foreground">{setup.winRate}%</strong></span>
-                      <span>Trades: <strong className="text-foreground">{setup.totalTrades}</strong></span>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+              {strategyData.map(strategy => (
+                <div key={strategy.name} className="p-4 rounded-lg bg-muted/30 border border-border/50">
+                  <p className="text-sm text-muted-foreground mb-1">{strategy.name}</p>
+                  <p className="text-xl font-bold font-mono tracking-tight">{strategy.winRate}% Win Rate</p>
+                  <p className="text-xs text-muted-foreground mt-1">{strategy.total} trades · ${strategy.pnl} P/L</p>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </motion.div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <Card className="border-border/50 bg-card/80">
+          <CardHeader className="pb-2 md:pb-4"><CardTitle className="text-base md:text-lg font-medium">Session Performance</CardTitle></CardHeader>
+          <CardContent className="px-2 md:px-6">
+            {sessionData.length === 0 ? (
+              <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm">No session data available</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={sessionData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(217, 32%, 18%)" />
+                  <XAxis dataKey="session" fontSize={10} stroke="#888" tickLine={false} axisLine={false} />
+                  <YAxis fontSize={10} stroke="#888" tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} />
+                  <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }} />
+                  <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
+                    {sessionData.map((entry, index) => <Cell key={index} fill={entry.pnl >= 0 ? 'hsl(160, 84%, 39%)' : 'hsl(0, 84%, 60%)'} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-card/80">
+          <CardHeader className="pb-2 md:pb-4"><CardTitle className="text-base md:text-lg font-medium">Pair Distribution</CardTitle></CardHeader>
+          <CardContent className="px-2 md:px-6">
+            {pairDistribution.length === 0 ? (
+              <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm">No pair data available</div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <ResponsiveContainer width="100%" height={220} className="sm:!w-1/2">
+                  <PieChart>
+                    <Pie data={pairDistribution} dataKey="count" nameKey="pair" cx="50%" cy="50%" innerRadius={35} outerRadius={70} paddingAngle={2}>
+                      {pairDistribution.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="w-full sm:flex-1 grid grid-cols-2 sm:grid-cols-1 gap-1.5">
+                  {pairDistribution.map((item, index) => (
+                    <div key={item.pair} className="flex items-center gap-2 text-xs sm:text-sm">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                      <span className="font-mono truncate">{item.pair}</span>
+                      <span className="text-muted-foreground ml-auto">{item.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Emotion Impact Analysis */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
         <Card className="border-border/50 bg-card/80">
           <CardHeader className="pb-2 md:pb-4">
             <CardTitle className="text-base md:text-lg font-medium flex items-center gap-2">
-              <Brain className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-              Emotion Impact Analysis
+              <Brain className="w-4 h-4 md:w-5 md:h-5 text-primary" /> Emotion Impact Analysis
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {emotionData.emotions.length === 0 ? (
-              <div className="h-[150px] md:h-[200px] flex items-center justify-center text-muted-foreground text-sm text-center px-4">
-                No emotion data available. Tag your trades with emotions to see their impact.
-              </div>
+              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">No emotion data available</div>
             ) : (
               <>
-                {/* What If Analysis Card */}
                 {emotionData.whatIf.negativeTradeCount > 0 && (
                   <div className="p-4 md:p-6 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30">
-                    <div className="flex items-center gap-2 mb-4">
-                      <AlertTriangle className="w-5 h-5 text-amber-500" />
-                      <h3 className="font-semibold text-sm md:text-base">Mistake Filter Analysis</h3>
-                    </div>
-                    <p className="text-xs md:text-sm text-muted-foreground mb-4">
-                      What your performance would look like without trades tagged with negative emotions 
-                      (FOMO, Greedy, Fearful, Revenge Trading, Overconfident, Impulsive, Rule Break).
-                    </p>
+                    <div className="flex items-center gap-2 mb-4"><AlertTriangle className="w-5 h-5 text-amber-500" /><h3 className="font-semibold">Mistake Filter Analysis</h3></div>
+                    <p className="text-xs md:text-sm text-muted-foreground mb-4">Performance without trades tagged with negative emotions.</p>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="p-3 rounded-lg bg-background/50">
-                        <p className="text-xs text-muted-foreground mb-1">Current P/L</p>
-                        <p className={`text-lg md:text-xl font-mono font-semibold ${emotionData.whatIf.totalPnL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                          {emotionData.whatIf.totalPnL >= 0 ? '+' : ''}${emotionData.whatIf.totalPnL.toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-background/50">
-                        <p className="text-xs text-muted-foreground mb-1">Without Mistakes</p>
-                        <p className={`text-lg md:text-xl font-mono font-semibold ${emotionData.whatIf.cleanPnL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                          {emotionData.whatIf.cleanPnL >= 0 ? '+' : ''}${emotionData.whatIf.cleanPnL.toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-background/50">
-                        <p className="text-xs text-muted-foreground mb-1">Cost of Mistakes</p>
-                        <p className={`text-lg md:text-xl font-mono font-semibold ${emotionData.whatIf.negativePnL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                          {emotionData.whatIf.negativePnL >= 0 ? '+' : ''}${emotionData.whatIf.negativePnL.toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-background/50">
-                        <p className="text-xs text-muted-foreground mb-1">Mistake Trades</p>
-                        <p className="text-lg md:text-xl font-mono font-semibold text-amber-500">
-                          {emotionData.whatIf.negativeTradeCount} trades
-                        </p>
-                      </div>
+                      <div className="p-3 rounded-lg bg-background/50"><p className="text-xs text-muted-foreground mb-1">Current P/L</p><p className={`text-lg font-mono font-semibold ${emotionData.whatIf.totalPnL >= 0 ? 'text-profit' : 'text-loss'}`}>${emotionData.whatIf.totalPnL.toFixed(2)}</p></div>
+                      <div className="p-3 rounded-lg bg-background/50"><p className="text-xs text-muted-foreground mb-1">Without Mistakes</p><p className={`text-lg font-mono font-semibold ${emotionData.whatIf.cleanPnL >= 0 ? 'text-profit' : 'text-loss'}`}>${emotionData.whatIf.cleanPnL.toFixed(2)}</p></div>
+                      <div className="p-3 rounded-lg bg-background/50"><p className="text-xs text-muted-foreground mb-1">Cost of Mistakes</p><p className={`text-lg font-mono font-semibold text-loss`}>-${Math.abs(emotionData.whatIf.negativePnL).toFixed(2)}</p></div>
+                      <div className="p-3 rounded-lg bg-background/50"><p className="text-xs text-muted-foreground mb-1">Mistake Trades</p><p className="text-lg font-mono font-semibold text-amber-500">{emotionData.whatIf.negativeTradeCount}</p></div>
                     </div>
-                    {emotionData.whatIf.lostOpportunity > 0 && (
-                      <div className="mt-4 p-3 rounded-lg bg-profit/10 border border-profit/30 flex items-center gap-3">
-                        <TrendingUp className="w-5 h-5 text-profit flex-shrink-0" />
-                        <p className="text-xs md:text-sm">
-                          <strong className="text-profit">Potential gain:</strong>{' '}
-                          <span className="text-muted-foreground">
-                            You could be{' '}
-                            <span className="font-mono font-semibold text-profit">
-                              ${emotionData.whatIf.lostOpportunity.toFixed(2)}
-                            </span>{' '}
-                            ahead without emotional trades ({emotionData.whatIf.cleanWinRate}% win rate on clean trades).
-                          </span>
-                        </p>
-                      </div>
-                    )}
-                    {emotionData.whatIf.lostOpportunity <= 0 && emotionData.whatIf.negativeTradeCount > 0 && (
-                      <div className="mt-4 p-3 rounded-lg bg-loss/10 border border-loss/30 flex items-center gap-3">
-                        <TrendingDown className="w-5 h-5 text-loss flex-shrink-0" />
-                        <p className="text-xs md:text-sm">
-                          <strong className="text-loss">Impact:</strong>{' '}
-                          <span className="text-muted-foreground">
-                            Emotional trades have cost you{' '}
-                            <span className="font-mono font-semibold text-loss">
-                              ${Math.abs(emotionData.whatIf.negativePnL).toFixed(2)}
-                            </span>. Focus on eliminating these patterns.
-                          </span>
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
-
-                {/* Emotion Performance Grid */}
                 <div>
-                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-primary" />
-                    Performance by Emotion Tag
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2"><Zap className="w-4 h-4 text-primary" /> Performance by Emotion Tag</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {emotionData.emotions.map(item => (
-                      <div
-                        key={item.emotion}
-                        className={`p-3 md:p-4 rounded-lg border ${
-                          item.isNegative 
-                            ? 'bg-loss/5 border-loss/30' 
-                            : item.isPositive 
-                              ? 'bg-profit/5 border-profit/30' 
-                              : 'bg-muted/30 border-border/50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1.5 md:mb-2">
-                          <div className="flex items-center gap-2">
-                            {item.isNegative ? (
-                              <AlertTriangle className="w-3.5 h-3.5 text-loss" />
-                            ) : item.isPositive ? (
-                              <Heart className="w-3.5 h-3.5 text-profit" />
-                            ) : null}
-                            <span className="font-medium text-sm md:text-base truncate">{item.emotion}</span>
-                          </div>
-                          <span className={`font-mono text-xs md:text-sm flex-shrink-0 ${item.pnl >= 0 ? 'text-profit' : 'text-loss'}`}>
-                            {item.pnl >= 0 ? '+' : ''}${item.pnl}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
-                          <span>Win Rate: <strong className="text-foreground">{item.winRate}%</strong></span>
-                          <span>Trades: <strong className="text-foreground">{item.totalTrades}</strong></span>
-                        </div>
+                      <div key={item.emotion} className={`p-4 rounded-lg border ${item.isNegative ? 'bg-loss/5 border-loss/30' : item.isPositive ? 'bg-profit/5 border-profit/30' : 'bg-muted/30 border-border/50'}`}>
+                        <div className="flex items-center justify-between mb-2"><span className="font-medium text-sm">{item.emotion}</span><span className={`font-mono text-sm ${item.pnl >= 0 ? 'text-profit' : 'text-loss'}`}>${item.pnl}</span></div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground"><span>Win Rate: <strong className="text-foreground">{item.winRate}%</strong></span><span>Trades: <strong className="text-foreground">{item.totalTrades}</strong></span></div>
                       </div>
                     ))}
                   </div>
@@ -515,60 +303,15 @@ export default function AnalyticsPage() {
         </Card>
       </motion.div>
 
-      {/* Key Stats Summary */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
         <Card className="border-border/50 bg-card/80">
-          <CardHeader className="pb-2 md:pb-4">
-            <CardTitle className="text-base md:text-lg font-medium">Performance Summary</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-base md:text-lg font-medium">Performance Summary</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-              <div>
-                <p className="text-xs md:text-sm text-muted-foreground mb-0.5 md:mb-1">Expectancy</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground font-mono hidden sm:block">
-                  (Win% × Avg Win) - (Loss% × Avg Loss)
-                </p>
-                <p className={`text-lg md:text-xl font-mono font-semibold mt-1 md:mt-2 ${stats.expectancy >= 0 ? 'text-profit' : 'text-loss'}`}>
-                  ${stats.expectancy.toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs md:text-sm text-muted-foreground mb-0.5 md:mb-1">Risk/Reward</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground hidden sm:block">
-                  Average Win vs Average Loss
-                </p>
-                <p className="text-lg md:text-xl font-mono font-semibold mt-1 md:mt-2">
-                  {stats.avgLoss > 0 ? (stats.avgWin / stats.avgLoss).toFixed(2) : '—'}:1
-                </p>
-              </div>
-              <div>
-                <p className="text-xs md:text-sm text-muted-foreground mb-0.5 md:mb-1">Break-Even WR</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground hidden sm:block">
-                  Required win rate to break even
-                </p>
-                <p className="text-lg md:text-xl font-mono font-semibold mt-1 md:mt-2">
-                  {stats.avgWin + stats.avgLoss > 0
-                    ? Math.round((stats.avgLoss / (stats.avgWin + stats.avgLoss)) * 100)
-                    : '—'}%
-                </p>
-              </div>
-              <div>
-                <p className="text-xs md:text-sm text-muted-foreground mb-0.5 md:mb-1">Edge</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground hidden sm:block">
-                  Win Rate vs Break-Even
-                </p>
-                <p className={`text-lg md:text-xl font-mono font-semibold mt-1 md:mt-2 ${
-                  stats.winRate > (stats.avgLoss / (stats.avgWin + stats.avgLoss)) * 100 ? 'text-profit' : 'text-loss'
-                }`}>
-                  {stats.avgWin + stats.avgLoss > 0
-                    ? `${(stats.winRate - (stats.avgLoss / (stats.avgWin + stats.avgLoss)) * 100).toFixed(1)}%`
-                    : '—'}
-                </p>
-              </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              <div><p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">Expectancy</p><p className={`text-xl font-mono font-semibold ${stats.expectancy >= 0 ? 'text-profit' : 'text-loss'}`}>${stats.expectancy.toFixed(2)}</p></div>
+              <div><p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">Risk/Reward</p><p className="text-xl font-mono font-semibold">{stats.avgLoss > 0 ? (stats.avgWin / stats.avgLoss).toFixed(2) : '—'}:1</p></div>
+              <div><p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">Break-Even WR</p><p className="text-xl font-mono font-semibold">{stats.avgWin + stats.avgLoss > 0 ? Math.round((stats.avgLoss / (stats.avgWin + stats.avgLoss)) * 100) : '—'}%</p></div>
+              <div><p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">Edge</p><p className={`text-xl font-mono font-semibold ${stats.winRate > (stats.avgLoss / (stats.avgWin + stats.avgLoss)) * 100 ? 'text-profit' : 'text-loss'}`}>{stats.avgWin + stats.avgLoss > 0 ? `${(stats.winRate - (stats.avgLoss / (stats.avgWin + stats.avgLoss)) * 100).toFixed(1)}%` : '—'}</p></div>
             </div>
           </CardContent>
         </Card>

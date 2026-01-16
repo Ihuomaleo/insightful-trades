@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   TrendingUp,
@@ -15,6 +15,7 @@ import { useTrades, useTradeStats } from '@/hooks/useTrades';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { EquityCurve } from '@/components/dashboard/EquityCurve';
 import { TradeTable } from '@/components/trades/TradeTable';
+import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton'; // Professional skeleton state
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +23,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { DEMO_TRADES } from '@/data/demoTrades';
-import { useNavigate } from 'react-router-dom';
+import { TradeForm } from '@/components/trades/TradeForm'; // To support the empty state CTA
 
 export default function DashboardPage() {
   const location = useLocation();
@@ -30,32 +31,31 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const isDemo = location.search.includes('demo=true');
   
-  const { trades: userTrades, isLoading, deleteTrade } = useTrades();
+  // Performance optimization: Fetch only recent 5 for table, but all for analysis
+  const { trades: userTrades, isLoading, deleteTrade, addTrade, isAdding } = useTrades(isDemo ? undefined : 5);
+  const { trades: allUserTrades } = useTrades();
+
   const [excludeFOMO, setExcludeFOMO] = useState(false);
   const [excludeRuleBreak, setExcludeRuleBreak] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
-  // Use demo trades if in demo mode, otherwise use user's trades
-  const trades = isDemo ? DEMO_TRADES : userTrades;
+  const displayTrades = isDemo ? DEMO_TRADES.slice(0, 5) : userTrades;
+  const analysisTrades = isDemo ? DEMO_TRADES : allUserTrades;
 
   const excludeEmotions = [
     ...(excludeFOMO ? ['FOMO'] : []),
     ...(excludeRuleBreak ? ['Rule Break'] : []),
   ];
 
-  const stats = useTradeStats(trades, excludeEmotions);
+  const stats = useTradeStats(analysisTrades, excludeEmotions);
 
-  const recentTrades = trades.slice(0, 5);
-
+  // Professional loading experience
   if (isLoading && !isDemo) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-muted-foreground">Loading trades...</div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
       {/* Demo Banner */}
       {isDemo && (
         <Alert className="border-primary/50 bg-primary/10">
@@ -83,6 +83,11 @@ export default function DashboardPage() {
             {isDemo ? 'Demo trading performance data' : 'Overview of your trading performance'}
           </p>
         </div>
+        {!isDemo && (
+          <Button onClick={() => setIsFormOpen(true)} className="hidden sm:flex">
+            New Trade
+          </Button>
+        )}
       </motion.div>
 
       {/* Mistake Filter */}
@@ -115,8 +120,8 @@ export default function DashboardPage() {
             </Label>
           </div>
           {(excludeFOMO || excludeRuleBreak) && (
-            <span className="text-xs text-muted-foreground">
-              Showing what-if scenario
+            <span className="text-xs text-muted-foreground italic">
+              Showing potential "what-if" impact
             </span>
           )}
         </CardContent>
@@ -158,57 +163,38 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Second Row Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <StatsCard
-          title="Average Win"
-          value={`+$${stats.avgWin.toFixed(2)}`}
-          icon={<TrendingUp className="w-5 h-5" />}
-          trend="profit"
-          delay={0.4}
-        />
-        <StatsCard
-          title="Average Loss"
-          value={`-$${stats.avgLoss.toFixed(2)}`}
-          icon={<TrendingDown className="w-5 h-5" />}
-          trend="loss"
-          delay={0.5}
-        />
-        <StatsCard
-          title="Best Trade"
-          value={`+$${stats.bestTrade.toFixed(2)}`}
-          trend="profit"
-          delay={0.6}
-        />
-        <StatsCard
-          title="Worst Trade"
-          value={`$${stats.worstTrade.toFixed(2)}`}
-          trend="loss"
-          delay={0.7}
-        />
-      </div>
-
-      {/* Equity Curve */}
+      {/* Equity Curve Analysis */}
       <EquityCurve
-        trades={excludeEmotions.length > 0
-          ? trades.filter(t => !t.emotions.some(e => excludeEmotions.includes(e)))
-          : trades
-        }
-        title={excludeEmotions.length > 0 ? 'Equity Curve (Filtered)' : 'Equity Curve'}
+        trades={analysisTrades}
+        excludeEmotions={excludeEmotions}
+        title={excludeEmotions.length > 0 ? "Performance Analysis: Reality vs. Potential" : "Equity Curve"}
       />
 
-      {/* Recent Trades */}
+      {/* Recent Trades with Empty State CTA */}
       <Card className="border-border/50 bg-card/80">
         <CardHeader>
           <CardTitle className="text-lg font-medium">Recent Trades</CardTitle>
         </CardHeader>
         <CardContent>
           <TradeTable
-            trades={recentTrades}
+            trades={displayTrades}
             onDelete={isDemo ? undefined : deleteTrade}
+            onAddFirst={() => setIsFormOpen(true)} // Connected to the empty state CTA
           />
         </CardContent>
       </Card>
+
+      {!isDemo && (
+        <TradeForm 
+          open={isFormOpen} 
+          onOpenChange={setIsFormOpen} 
+          onSubmit={(data) => {
+            addTrade(data);
+            setIsFormOpen(false);
+          }}
+          isSubmitting={isAdding}
+        />
+      )}
     </div>
   );
 }

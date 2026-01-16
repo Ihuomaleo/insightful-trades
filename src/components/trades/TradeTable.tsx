@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, ArrowDownRight, MoreHorizontal, Trash2, Edit } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, MoreHorizontal, Trash2, Edit, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Table,
@@ -27,9 +27,10 @@ interface TradeTableProps {
   trades: Trade[];
   onDelete?: (id: string) => void;
   onEdit?: (trade: Trade) => void;
+  onAddFirst?: () => void; // Added for empty state CTA
 }
 
-export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
+export function TradeTable({ trades, onDelete, onEdit, onAddFirst }: TradeTableProps) {
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -37,17 +38,33 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
     setSelectedTrade(trade);
     setDetailsOpen(true);
   };
+
+  // Action-oriented Empty State
   if (trades.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        <p>No trades logged yet. Click "New Trade" to add your first trade.</p>
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-border/50 rounded-xl bg-card/30">
+        <div className="p-4 bg-muted rounded-full mb-4">
+          <PlusCircle className="w-10 h-10 text-muted-foreground opacity-50" />
+        </div>
+        <h3 className="text-xl font-semibold mb-2">No trades logged yet</h3>
+        <p className="text-muted-foreground max-w-xs mb-6">
+          Start building your journal to see your performance analytics and equity curve.
+        </p>
+        <Button 
+          variant="default" 
+          onClick={onAddFirst}
+          className="shadow-lg hover:shadow-primary/20 transition-all"
+        >
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Log your first trade
+        </Button>
       </div>
     );
   }
 
   return (
     <>
-      {/* Desktop Table View */}
+      {/* Desktop Table View (Hidden on mobile) */}
       <div className="hidden md:block rounded-lg border border-border/50 overflow-hidden">
         <Table>
           <TableHeader>
@@ -123,7 +140,7 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
                       {rMultiple !== null ? (rMultiple > 0 ? '+' : '') + rMultiple.toFixed(2) + 'R' : '—'}
                     </TableCell>
                     <TableCell className={cn(
-                      'text-right font-mono text-sm font-medium',
+                      'text-right font-mono text-sm font-bold',
                       pnl !== null && (isProfit ? 'text-profit' : 'text-loss')
                     )}>
                       {pnl !== null ? (isProfit ? '+$' : '-$') + Math.abs(pnl).toFixed(2) : '—'}
@@ -170,8 +187,8 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
         </Table>
       </div>
 
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-3">
+      {/* Refined Mobile Card View (Hidden on desktop) */}
+      <div className="md:hidden grid grid-cols-1 gap-3">
         <AnimatePresence>
           {trades.map((trade, index) => {
             const pnl = trade.exit_price
@@ -189,41 +206,67 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ delay: index * 0.02 }}
-                className="rounded-lg border border-border/50 bg-card p-4 space-y-3 cursor-pointer active:bg-muted/30"
+                className="p-4 rounded-xl border border-border/50 bg-card shadow-sm active:scale-[0.98] transition-all cursor-pointer"
                 onClick={() => handleTradeClick(trade)}
               >
-                {/* Header Row */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CurrencyBadge pair={trade.pair} />
-                    <div className={cn(
-                      'flex items-center gap-1 text-xs font-medium',
-                      trade.direction === 'long' ? 'text-profit' : 'text-loss'
-                    )}>
-                      {trade.direction === 'long' ? (
-                        <ArrowUpRight className="w-4 h-4" />
-                      ) : (
-                        <ArrowDownRight className="w-4 h-4" />
-                      )}
-                      {trade.direction.toUpperCase()}
-                    </div>
-                  </div>
+                <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2">
-                    <Badge variant={trade.status === 'open' ? 'outline' : 'secondary'} className="text-xs">
+                    <CurrencyBadge pair={trade.pair} />
+                    <Badge 
+                      variant={trade.direction === 'long' ? 'default' : 'destructive'} 
+                      className={cn(
+                        "text-[10px] h-5 px-1.5",
+                        trade.direction === 'long' ? 'bg-profit hover:bg-profit' : 'bg-loss hover:bg-loss'
+                      )}
+                    >
+                      {trade.direction.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <p className={cn(
+                      "font-mono font-bold text-lg leading-none",
+                      pnl !== null && (isProfit ? "text-profit" : "text-loss")
+                    )}>
+                      {pnl !== null ? (isProfit ? '+$' : '-$') + Math.abs(pnl).toFixed(2) : '—'}
+                    </p>
+                    {pips !== null && (
+                      <span className="text-[10px] text-muted-foreground mt-1">
+                        {pips > 0 ? '+' : ''}{pips.toFixed(1)} pips
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 py-3 border-y border-border/30 text-sm">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-muted-foreground text-[10px] uppercase tracking-wider">Entry Price</span>
+                    <span className="font-mono text-foreground font-medium">{trade.entry_price.toFixed(5)}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 text-right">
+                    <span className="text-muted-foreground text-[10px] uppercase tracking-wider">Exit Price</span>
+                    <span className="font-mono text-foreground font-medium">{trade.exit_price?.toFixed(5) ?? '—'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-xs text-muted-foreground italic">
+                    {format(new Date(trade.entry_time), 'MMM dd, HH:mm')}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={trade.status === 'open' ? 'outline' : 'secondary'} className="text-[10px] h-5">
                       {trade.status}
                     </Badge>
                     <div onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {onEdit && (
                             <DropdownMenuItem onClick={() => onEdit(trade)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
+                              <Edit className="w-4 h-4 mr-2" /> Edit
                             </DropdownMenuItem>
                           )}
                           {onDelete && (
@@ -231,47 +274,12 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
                               onClick={() => onDelete(trade.id)}
                               className="text-loss focus:text-loss"
                             >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
+                              <Trash2 className="w-4 h-4 mr-2" /> Delete
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                  </div>
-                </div>
-
-                {/* Price Info */}
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground text-xs">Entry</span>
-                    <p className="font-mono">{trade.entry_price.toFixed(5)}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground text-xs">Exit</span>
-                    <p className="font-mono">{trade.exit_price?.toFixed(5) ?? '—'}</p>
-                  </div>
-                </div>
-
-                {/* P/L and Date */}
-                <div className="flex items-center justify-between pt-2 border-t border-border/30">
-                  <div>
-                    <span className="text-muted-foreground text-xs">P/L</span>
-                    <p className={cn(
-                      'font-mono font-medium',
-                      pnl !== null && (isProfit ? 'text-profit' : 'text-loss')
-                    )}>
-                      {pnl !== null ? (isProfit ? '+$' : '-$') + Math.abs(pnl).toFixed(2) : '—'}
-                      {pips !== null && (
-                        <span className="text-xs text-muted-foreground ml-2">
-                          ({pips > 0 ? '+' : ''}{pips.toFixed(1)} pips)
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-muted-foreground text-xs">Date</span>
-                    <p className="text-sm">{format(new Date(trade.entry_time), 'MMM dd, HH:mm')}</p>
                   </div>
                 </div>
               </motion.div>
@@ -280,7 +288,6 @@ export function TradeTable({ trades, onDelete, onEdit }: TradeTableProps) {
         </AnimatePresence>
       </div>
 
-      {/* Trade Details Modal */}
       <TradeDetailsModal
         trade={selectedTrade}
         open={detailsOpen}
